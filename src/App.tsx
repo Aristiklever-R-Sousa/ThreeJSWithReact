@@ -92,10 +92,10 @@ function App() {
     },
     () => {
       if (cameraRef.current instanceof THREE.OrthographicCamera) {
-        cameraRef.current.left = valuesForm.xMin;
-        cameraRef.current.right = valuesForm.xMax;
-        cameraRef.current.top = valuesForm.yMax;
-        cameraRef.current.bottom = valuesForm.yMin;
+        cameraRef.current.left = Number(valuesForm.xMin);
+        cameraRef.current.right = Number(valuesForm.xMax);
+        cameraRef.current.top = Number(valuesForm.yMax);
+        cameraRef.current.bottom = Number(valuesForm.yMin);
       }
     }
   ];
@@ -146,8 +146,8 @@ function App() {
 
         setCameras[valuesForm.project_type]();
 
-        cameraRef.current.near = valuesForm.near;
-        cameraRef.current.far = valuesForm.far;
+        cameraRef.current.near = Number(valuesForm.near);
+        cameraRef.current.far = Number(valuesForm.far);
 
         cameraRef.current.position.set(valuesForm.camX, valuesForm.camY, valuesForm.camZ);
 
@@ -187,8 +187,6 @@ function App() {
 
     renderCam();
 
-    console.log({ transformMatrix });
-
     if (cameraRef.current) renderer.render(scene.current, cameraRef.current);
 
   };
@@ -199,7 +197,6 @@ function App() {
       const dimensionsDiv = viewBox.current.getBoundingClientRect();
       renderer.setSize(dimensionsDiv.width, dimensionsDiv.height);
       viewBox.current?.appendChild(renderer.domElement);
-      console.log({ aspect: dimensionsDiv.width / dimensionsDiv.height });
     }
   };
 
@@ -214,17 +211,12 @@ function App() {
     let count = array.length;
 
     return transformMatrix.matrix.map((item, index) => {
-      array.push(<span key={array.length}>{item}</span>);
+      array.push(<span key={array.length}>{item.toFixed(2)}</span>);
 
       if (array.length == 4) {
         count++;
         const element = (
           <div
-            style={{
-              display: 'flex',
-              // gap: '1rem',
-              flexDirection: 'column',
-            }}
             key={count}
           >
             {array}
@@ -414,8 +406,7 @@ function App() {
           </div>
         </div>
       </div>
-      <div
-        className="col"
+      <div className="col"
         style={{
           flexGrow: 1,
           gap: '1rem',
@@ -434,7 +425,6 @@ function App() {
             ref={viewBox}
             style={{
               flexGrow: 1,
-              border: '1px solid black',
               borderRadius: '5px',
               overflow: 'hidden'
             }}
@@ -452,27 +442,13 @@ function App() {
           }}
         >
           <button
+            className='btn-update'
             onClick={() => handleToUpdate()}
-            style={{
-              cursor: 'pointer',
-              maxHeight: '5rem',
-              maxWidth: '6.5rem',
-            }}
           >
             ATUALIZAR
           </button>
           <div
-            style={{
-              height: '100%',
-              padding: '0 1rem',
-              borderLeft: '1px solid black',
-              borderRight: '1px solid black',
-              borderRadius: '0.5rem',
-              display: 'flex',
-              // flexDirection: 'column',
-              alignItems: 'center',
-              gap: '1rem'
-            }}
+            className='matrixTransformation'
           >
             {matrix}
           </div>
@@ -616,7 +592,7 @@ function App() {
             <input
               id="near"
               name="near"
-              type="number"
+              type={"number"}
               value={valuesForm.near}
               onChange={
                 ({ currentTarget: elem }) => setValuesForm({
@@ -631,7 +607,7 @@ function App() {
             <input
               id="far"
               name="far"
-              type="number"
+              type={"number"}
               value={valuesForm.far}
               onChange={
                 ({ currentTarget: elem }) => setValuesForm({
