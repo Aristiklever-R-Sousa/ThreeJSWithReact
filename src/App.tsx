@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three';
 import './App.css'
 
@@ -33,16 +33,6 @@ interface IValuesForm {
 function App() {
   const viewBox = useRef<HTMLDivElement>(null);
 
-  const objects = [
-    () => new THREE.BoxGeometry(1, 1, 1),
-    () => new THREE.SphereGeometry(1, 64, 32),
-    () => new THREE.ConeGeometry(1, 3, 36),
-    () => new THREE.CylinderGeometry(1, 1, 3, 32),
-    () => new THREE.ConeGeometry(1, 3, 4),
-  ];
-
-  const [transformMatrix0, setTransformMatrix0] = useState([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
-
   const [valuesForm, setValuesForm] = useState<IValuesForm>({
     object: 0,
     rotationX: 0,
@@ -73,40 +63,75 @@ function App() {
 
   // TODO: Descobrir porque o canvas não tá atualizando.
 
+  const [renderer, setRenderer] = useState(new THREE.WebGLRenderer({ antialias: true, }));
   const scene = useRef(new THREE.Scene());
+
   const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera>();
   const objectRef = useRef<THREE.Mesh<THREE.BoxGeometry | THREE.CylinderGeometry | THREE.SphereGeometry, THREE.MeshBasicMaterial>>();
-  const renderer = new THREE.WebGLRenderer({ antialias: true, });
+  const [projectType, setProjectType] = useState(-1);
+  const [transformMatrix, setTransformMatrix] = useState<number[]>([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+  // const transformMatrix = useRef<number[]>([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 
-  const renderCube = (scaling: { x: number, y: number, z: number }) => {
-    return (
-      new THREE.BoxGeometry(
-        scaling.x,
-        scaling.y,
-        scaling.z
-      )
-    );
-  };
+  const matrix = useMemo(() => {
+    return transformMatrix.map((item, index) => {
+      return (
+        <div
+          style={{
+            // flexGrow: 1,
+            // flexBasis: '1rem'
+          }}
+          key={index}
+        >
+          {item}
+        </div>
+      );
+    });
+  }, [transformMatrix]);
+
+  const objects = [
+    () => new THREE.BoxGeometry(1, 1, 1),
+    () => new THREE.SphereGeometry(1, 64, 32),
+    () => new THREE.ConeGeometry(1, 3, 36),
+    () => new THREE.CylinderGeometry(1, 1, 3, 32),
+    () => new THREE.ConeGeometry(1, 3, 4),
+  ];
+
+  const newCameras = [
+    () => new THREE.PerspectiveCamera(valuesForm.fov, valuesForm.ra, valuesForm.near, valuesForm.far),
+    () => new THREE.OrthographicCamera(valuesForm.xMin, valuesForm.xMax, valuesForm.yMax, valuesForm.yMin, valuesForm.near, valuesForm.far)
+  ];
+  const setCameras = [
+    () => {
+      if (cameraRef.current instanceof THREE.PerspectiveCamera) {
+        cameraRef.current.fov = valuesForm.fov;
+        cameraRef.current.aspect = valuesForm.ra;
+      }
+    },
+    () => {
+      if (cameraRef.current instanceof THREE.OrthographicCamera) {
+        cameraRef.current.left = valuesForm.xMin;
+        cameraRef.current.right = valuesForm.xMax;
+        cameraRef.current.top = valuesForm.yMax;
+        cameraRef.current.bottom = valuesForm.yMin;
+      }
+    }
+  ];
 
   const updateObjectValues = () => {
     if (objectRef.current) {
-      // setObject((prevObject) => {
-      //   const newGeometry = prevObject?.clone();
-
-      //   newGeometry?.scale.set(valuesForm.scalingX, valuesForm.scalingY, valuesForm.scalingZ);
-
-      //   return {
-      //     ...prevObject,
-      //     newGeometry
-      //   };
-      // });
       objectRef.current.scale.set(valuesForm.scalingX, valuesForm.scalingY, valuesForm.scalingZ);
       objectRef.current.rotation.set(valuesForm.rotationX, valuesForm.rotationY, valuesForm.rotationZ);
       objectRef.current.position.set(valuesForm.translationX, valuesForm.translationY, valuesForm.translationZ);
 
-      setTransformMatrix0(objectRef.current.matrix.elements);
+      const object3d = objectRef.current.matrix.clone().elements;
+      setTransformMatrix(object3d);
+      // transformMatrix.current = Array.from(objectRef.current.matrix.elements);
+      console.log({ matrixWorld: objectRef.current.matrixWorld.elements, matrix: objectRef.current.matrix.elements, newArr: objectRef.current.matrix.toArray(), transformMatrix });
+
+      // if (cameraRef.current) renderer.render(scene.current, cameraRef.current);
     }
   }
+
   const renderObject = () => {
 
     const objectSelcted = objects[valuesForm.object]();
@@ -117,82 +142,58 @@ function App() {
       material
     );
 
-    // if (objectRef.current && scene.current) scene.current.remove(objectRef.current);
+    if (objectRef.current) scene.current.remove(objectRef.current);
+    // objectRef.current = object3D;
+    // updateObjectValues();
 
     object3D.scale.set(valuesForm.scalingX, valuesForm.scalingY, valuesForm.scalingZ);
     object3D.rotation.set(valuesForm.rotationX, valuesForm.rotationY, valuesForm.rotationZ);
     object3D.position.set(valuesForm.translationX, valuesForm.translationY, valuesForm.translationZ);
 
     objectRef.current = object3D;
+    scene.current.add(objectRef.current);
 
-    if (scene.current) scene.current.add(object3D);
+    setTransformMatrix(object3D.matrix.elements);
+    // transformMatrix.current = Array.from(objectRef.current.matrix.elements);
 
-    setTransformMatrix0(object3D.matrix.elements);
+    if (cameraRef.current) renderer.render(scene.current, cameraRef.current);
 
-    console.log({ matrixWorld: object3D.matrixWorld, matrix: object3D.matrix, object: valuesForm.object });
-
-    // if (cameraRef.current && scene.current) {
-    //   renderer.render(scene.current, cameraRef.current);
-    // }
+    console.log({ matrixWorld: object3D.matrixWorld, matrix: object3D.matrix });
 
   }
 
   const renderCam = () => {
-    const newCameras = [
-      () => new THREE.PerspectiveCamera(valuesForm.fov, valuesForm.ra, valuesForm.near, valuesForm.far),
-      () => new THREE.OrthographicCamera(valuesForm.xMin, valuesForm.xMax, valuesForm.yMax, valuesForm.yMin, valuesForm.near, valuesForm.far)
-    ];
 
-    // if (valuesForm.project_type == projectType) {
-    //   if (cameraRef.current) {
-    //     const setCameras = [
-    //       () => {
-    //         if (cameraRef.current instanceof THREE.PerspectiveCamera) {
-    //           cameraRef.current.fov = valuesForm.fov;
-    //           cameraRef.current.aspect = valuesForm.ra;
-    //           cameraRef.current.near = valuesForm.near;
-    //           cameraRef.current.far = valuesForm.far;
-    //         }
-    //       },
-    //       () => {
-    //         if (cameraRef.current instanceof THREE.OrthographicCamera) {
+    if (valuesForm.project_type == projectType) {
+      if (cameraRef.current) {
 
-    //           cameraRef.current.left = valuesForm.xMin;
-    //           cameraRef.current.right = valuesForm.xMax;
-    //           cameraRef.current.top = valuesForm.yMax;
-    //           cameraRef.current.bottom = valuesForm.yMin;
-    //           cameraRef.current.near = valuesForm.near;
-    //           cameraRef.current.far = valuesForm.far;
-    //         }
-    //       }
-    //     ];
+        setCameras[valuesForm.project_type]();
 
-    //     setCameras[valuesForm.project_type]();
+        cameraRef.current.near = valuesForm.near;
+        cameraRef.current.far = valuesForm.far;
 
-    //     cameraRef.current.position.set(valuesForm.camX, valuesForm.camY, valuesForm.camZ);
+        cameraRef.current.position.set(valuesForm.camX, valuesForm.camY, valuesForm.camZ);
 
-    //     cameraRef.current.lookAt(new THREE.Vector3(valuesForm.camCX, valuesForm.camCY, valuesForm.camCZ));
+        cameraRef.current.lookAt(new THREE.Vector3(valuesForm.camCX, valuesForm.camCY, valuesForm.camCZ));
 
-    //     cameraRef.current.updateProjectionMatrix();
+        cameraRef.current.updateProjectionMatrix();
 
-    //   }
-    // }
-    // else {
-    const camSelected = newCameras[valuesForm.project_type]();
+      }
+    }
+    else {
+      const camSelected = newCameras[valuesForm.project_type]();
 
-    camSelected.position.set(valuesForm.camX, valuesForm.camY, valuesForm.camZ);
+      camSelected.position.set(valuesForm.camX, valuesForm.camY, valuesForm.camZ);
 
-    camSelected.lookAt(new THREE.Vector3(valuesForm.camCX, valuesForm.camCY, valuesForm.camCZ));
+      camSelected.lookAt(new THREE.Vector3(valuesForm.camCX, valuesForm.camCY, valuesForm.camCZ));
 
-    if (scene.current) {
-      // if (cameraRef.current) scene.current.remove(cameraRef.current);
+      if (cameraRef.current) scene.current.remove(cameraRef.current);
       scene.current.add(camSelected);
+
+      cameraRef.current = camSelected;
+      setProjectType(valuesForm.project_type);
     }
 
-    cameraRef.current = camSelected;
-    // }
-
-    // return camSelected;
   };
 
   // const animate = () => {
@@ -205,48 +206,32 @@ function App() {
   // }
 
   const handleToUpdate = () => {
-    updateViewContent();
-
-    if (scene.current) scene.current.clear();
-
-    renderObject();
-    // updateObjectValues();
+    updateObjectValues();
 
     renderCam();
 
-    if (scene.current && cameraRef.current) {
-      renderer.render(scene.current, cameraRef.current);
-      console.log('Renderizou né...');
-      console.log({ scene: scene.current.toJSON(), cameraRef, objectRef });
-    }
-
+    console.log({ transformMatrix });
+    if (cameraRef.current) renderer.render(scene.current, cameraRef.current);
 
   };
 
   const updateViewContent = () => {
     if (viewBox.current) {
+      for (const child of viewBox.current.children) child.remove();
       const dimensionsDiv = viewBox.current.getBoundingClientRect();
       renderer.setSize(dimensionsDiv.width, dimensionsDiv.height);
-      for (const child of viewBox.current.children) child.remove();
       viewBox.current?.appendChild(renderer.domElement);
     }
   };
 
   useEffect(() => {
-    if (viewBox.current) {
-      const dimensionsDiv = viewBox.current.getBoundingClientRect();
-      renderer.setSize(dimensionsDiv.width, dimensionsDiv.height);
-      for (const child of viewBox.current.children) child.remove();
-      viewBox.current?.appendChild(renderer.domElement);
-    }
+    updateViewContent();
     renderObject();
     renderCam();
-    console.log({ scene: scene.current.toJSON() });
-    if (scene.current && cameraRef.current) renderer.render(scene.current, cameraRef.current);
-    // handleToUpdate();
   }, []);
 
-  useEffect(() => handleToUpdate(), [valuesForm.object]);
+  useEffect(renderObject, [valuesForm.object]);
+
 
   return (
     <div id="main-container">
@@ -466,21 +451,15 @@ function App() {
           <div
             style={{
               height: '100%',
-              // width: '25%',
               padding: '0 1rem',
-              // display: 'grid',
-              // gridTemplateColumns: 'repeat(auto-fit, minmax(1rem, 1fr))',
-              // gridTemplateRows: 'repeat(4, minmax(1rem, 1fr))',
-              // gridAutoRows: 'minmax(1rem, 1fr)',
-              // gap: '0.5rem 1.2rem',
-              // gridAutoFlow: 'dense',
-
               borderLeft: '1px solid black',
               borderRight: '1px solid black',
               borderRadius: '0.5rem',
             }}
           >
-            {transformMatrix0.map((item, index) => {
+            {/* {matrix} */}
+            {transformMatrix.map((item, index) => {
+              console.log('Printing matrix...');
               return (
                 <div
                   style={{
