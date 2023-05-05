@@ -61,32 +61,15 @@ function App() {
     yMax: 1,
   });
 
-  // TODO: Descobrir porque o canvas não tá atualizando.
-
-  const [renderer, setRenderer] = useState(new THREE.WebGLRenderer({ antialias: true, }));
+  const [renderer] = useState(new THREE.WebGLRenderer({ antialias: true, }));
   const scene = useRef(new THREE.Scene());
 
   const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera>();
   const objectRef = useRef<THREE.Mesh<THREE.BoxGeometry | THREE.CylinderGeometry | THREE.SphereGeometry, THREE.MeshBasicMaterial>>();
   const [projectType, setProjectType] = useState(-1);
-  const [transformMatrix, setTransformMatrix] = useState<number[]>([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
-  // const transformMatrix = useRef<number[]>([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
-
-  const matrix = useMemo(() => {
-    return transformMatrix.map((item, index) => {
-      return (
-        <div
-          style={{
-            // flexGrow: 1,
-            // flexBasis: '1rem'
-          }}
-          key={index}
-        >
-          {item}
-        </div>
-      );
-    });
-  }, [transformMatrix]);
+  const [transformMatrix, setTransformMatrix] = useState<{ matrix: number[] }>({
+    matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+  });
 
   const objects = [
     () => new THREE.BoxGeometry(1, 1, 1),
@@ -123,10 +106,9 @@ function App() {
       objectRef.current.rotation.set(valuesForm.rotationX, valuesForm.rotationY, valuesForm.rotationZ);
       objectRef.current.position.set(valuesForm.translationX, valuesForm.translationY, valuesForm.translationZ);
 
-      const object3d = objectRef.current.matrix.clone().elements;
-      setTransformMatrix(object3d);
+      setTransformMatrix({ matrix: objectRef.current.matrix.elements });
+      // console.log({ matrixWorld: objectRef.current.matrixWorld.elements, matrix: objectRef.current.matrix.elements, newArr: [...objectRef.current.matrix.elements.slice()], type: typeof objectRef.current.matrix.elements });
       // transformMatrix.current = Array.from(objectRef.current.matrix.elements);
-      console.log({ matrixWorld: objectRef.current.matrixWorld.elements, matrix: objectRef.current.matrix.elements, newArr: objectRef.current.matrix.toArray(), transformMatrix });
 
       // if (cameraRef.current) renderer.render(scene.current, cameraRef.current);
     }
@@ -143,8 +125,6 @@ function App() {
     );
 
     if (objectRef.current) scene.current.remove(objectRef.current);
-    // objectRef.current = object3D;
-    // updateObjectValues();
 
     object3D.scale.set(valuesForm.scalingX, valuesForm.scalingY, valuesForm.scalingZ);
     object3D.rotation.set(valuesForm.rotationX, valuesForm.rotationY, valuesForm.rotationZ);
@@ -153,12 +133,9 @@ function App() {
     objectRef.current = object3D;
     scene.current.add(objectRef.current);
 
-    setTransformMatrix(object3D.matrix.elements);
-    // transformMatrix.current = Array.from(objectRef.current.matrix.elements);
+    setTransformMatrix({ matrix: object3D.matrix.elements });
 
     if (cameraRef.current) renderer.render(scene.current, cameraRef.current);
-
-    console.log({ matrixWorld: object3D.matrixWorld, matrix: object3D.matrix });
 
   }
 
@@ -211,6 +188,7 @@ function App() {
     renderCam();
 
     console.log({ transformMatrix });
+
     if (cameraRef.current) renderer.render(scene.current, cameraRef.current);
 
   };
@@ -221,6 +199,7 @@ function App() {
       const dimensionsDiv = viewBox.current.getBoundingClientRect();
       renderer.setSize(dimensionsDiv.width, dimensionsDiv.height);
       viewBox.current?.appendChild(renderer.domElement);
+      console.log({ aspect: dimensionsDiv.width / dimensionsDiv.height });
     }
   };
 
@@ -230,8 +209,37 @@ function App() {
     renderCam();
   }, []);
 
-  useEffect(renderObject, [valuesForm.object]);
+  const matrix = useMemo(() => {
+    let array: JSX.Element[] = [];
+    let count = array.length;
 
+    return transformMatrix.matrix.map((item, index) => {
+      array.push(<span key={array.length}>{item}</span>);
+
+      if (array.length == 4) {
+        count++;
+        const element = (
+          <div
+            style={{
+              display: 'flex',
+              // gap: '1rem',
+              flexDirection: 'column',
+            }}
+            key={count}
+          >
+            {array}
+          </div>
+        );
+
+        array = [];
+
+        return element;
+      }
+
+    });
+  }, [transformMatrix]);
+
+  useEffect(renderObject, [valuesForm.object]);
 
   return (
     <div id="main-container">
@@ -436,15 +444,20 @@ function App() {
         </div>
         <div
           style={{
+            height: '22%',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
             gap: '5rem',
-            height: '22%',
           }}
         >
           <button
             onClick={() => handleToUpdate()}
+            style={{
+              cursor: 'pointer',
+              maxHeight: '5rem',
+              maxWidth: '6.5rem',
+            }}
           >
             ATUALIZAR
           </button>
@@ -455,23 +468,13 @@ function App() {
               borderLeft: '1px solid black',
               borderRight: '1px solid black',
               borderRadius: '0.5rem',
+              display: 'flex',
+              // flexDirection: 'column',
+              alignItems: 'center',
+              gap: '1rem'
             }}
           >
-            {/* {matrix} */}
-            {transformMatrix.map((item, index) => {
-              console.log('Printing matrix...');
-              return (
-                <div
-                  style={{
-                    // flexGrow: 1,
-                    // flexBasis: '1rem'
-                  }}
-                  key={index}
-                >
-                  {item}
-                </div>
-              );
-            })}
+            {matrix}
           </div>
         </div>
       </div>
